@@ -1,0 +1,82 @@
+import threading
+
+#Provide input for resources and processes
+
+num_resources = int(input("Enter number of resources: "))
+num_processes = int(input("Enter number of processes: "))
+
+# Initialize the available, max, allocation, and need 
+available = [10, 5, 7]
+max = [[7, 5, 3], [3, 2, 2], [9, 0, 2]]
+allocation = [[0, 1, 0], [2, 0, 0], [3, 0, 2]]
+need = [[7, 4, 3], [1, 2, 2], [6, 0, 0]]
+
+# Initialize the mutex lock
+mutex = threading.Lock()
+
+# Define the function for the threads to execute
+def process(process_num):
+    global available, max, allocation, need
+    while True:
+        # Request resources
+        request = []
+        for i in range(num_resources):
+            request.append(int(input("Enter the request for resource {} from process {}: ".format(i+1, process_num))))
+        
+        # Acquire the mutex lock before accessing shared data
+        mutex.acquire()
+        
+        # Check if the request can be granted
+        if all(request[i] <= need[process_num][i] for i in range(num_resources)) and all(request[i] <= available[i] for i in range(num_resources)):
+            # Grant the request and update the matrices
+            for i in range(num_resources):
+                available[i] -= request[i]
+                allocation[process_num][i] += request[i]
+                need[process_num][i] -= request[i]
+            
+            # Display the updated state
+            print("Resources allocated to process {}: {}".format(process_num, allocation[process_num]))
+            print("Available resources: {}".format(available))
+            print("Need: ", need)
+        else:
+            print("Request cannot be granted.")
+        
+        # Release the mutex lock
+        mutex.release()
+        
+        # Release resources
+        release = input("Enter 1 to release resources, 0 to exit: ")
+        if release == "1":
+            release = []
+            for i in range(num_resources):
+                release.append(int(input("Enter the amount of resource {} to release from process {}: ".format(i+1, process_num))))
+            
+            # Acquire the mutex lock before accessing shared data
+            mutex.acquire()
+            
+            # Release the resources and update the matrices
+            for i in range(num_resources):
+                available[i] += release[i]
+                allocation[process_num][i] -= release[i]
+                need[process_num][i] += release[i]
+            
+            # Display the updated state
+            print("Resources released by process {}: {}".format(process_num, release))
+            print("Available resources: {}".format(available))
+            print("Need: ", need)
+            
+            # Release the mutex lock
+            mutex.release()
+        else:
+            break
+
+# Create the threads
+threads = []
+for i in range(num_processes):
+    thread = threading.Thread(target=process, args=(i,))
+    threads.append(thread)
+    thread.start()
+
+# Wait for the threads to finish
+for thread in threads:
+    thread.join()
